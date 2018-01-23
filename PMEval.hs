@@ -2,9 +2,35 @@ module PMEval where
 
 import PMParser
 
+data Expr = Const Int | Tag String | Var String |
+            Field Int String | BinOp BinOpSort Expr Expr | 
+            Econstr String [Expr] | Ifthenelse Expr Expr Expr
+            deriving (Show)
+
+data Pattern = Wild | Pconstr String [Pattern] |
+               Named String | Pconst Int 
+               deriving (Show)
+
+
 -- next two structures are used by parser
-optsE = undefined -- for expressions
-optsP = undefined -- for patterns
+optsE :: Ops Expr
+optsE = TermConstruction 
+    { int = const Const
+    , tag = const Tag
+    , var = const Var
+    , field = const Field
+    , binop = BinOp
+    , econstr = const Econstr
+    , ifthenelse = const Ifthenelse
+    }
+
+optsP :: PattOps Pattern
+optsP = PattConstruction
+    { wild = const Wild
+    , pconstr = const Pconstr
+    , named = const Named
+    , pconst = const Pconst
+    }
 
 data EvalRez =
     OK Int           -- success
@@ -12,8 +38,7 @@ data EvalRez =
                      -- unbound variables, etc.
   | PMatchFail       -- patterns are not exhaustive.
   deriving (Show,Eq)
-
-
+      
 -- implement this function :: expr -> [(pattern,expr)] -> EvalRez
 -- which tries to match `expr` using specified patterns and right-hand-sides
 -- and returns appropritate answer. For, example
