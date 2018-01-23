@@ -7,7 +7,7 @@ import Text.Parsec as Parsec
 data Expr = Const Int | Tag Expr | Var String |
             Field Int Expr | BinOp BinOpSort Expr Expr | 
             Econstr String [Expr] | Ifthenelse Expr Expr Expr |
-            BoolExpr Bool
+            BoolExpr Bool | InvalidExpr
             deriving (Show)
 
 data Pattern = Wild | Pconstr String [Pattern] |
@@ -53,18 +53,43 @@ data EvalRez =
 
 -- For examples about which expression and patterns can be written see tests file.
 
---takes 2 constants and returns BoolExpr
--- bincalc :: BinOpSort -> Expr -> Expr -> Expr
--- bincalc (Const bool) = BoolExpr True
+-- takes 2 constants and returns Const Int or BoolExpr
+bincalc :: BinOpSort -> Expr -> Expr -> Expr
+-- bincalc _ Nothing _ = InvalidExpr
+-- bincalc _ _ Nothing = InvalidExpr
+bincalc oper (Const x) (Const y) = case oper of
+	Mul -> Const $ x * y
+	Add -> Const $ x + y
+	Sub -> Const $ x - y
+	Eq -> BoolExpr $ x == y
+	LessThen -> BoolExpr $ x <= y
+	LessEq -> BoolExpr $ x < y
+bincalc _ _ _ = InvalidExpr
 
+subst :: Expr -> (Pattern, Expr) -> Expr
+subst what (Named var, Const num) = Const num
+subst what (Named pvar, Var evar) = if pvar == evar then what else (Var evar)
+subst what (Named var, Tag tag) = Tag $ subst what (Named var, tag)
+subst what (Named var, BinOp oper e1 e2) = BinOp oper (subst what (Named var, e1)) (subst what (Named var, e2))
+subst what (Named var, Field index expr) = Field index (subst what (Named var, expr))
+subst what (Named var, Econstr name args) = Econstr name $ map (curry (subst what) (Named var)) args
+subst what (Named var, Ifthenelse cond e1 e2) = Ifthenelse (subst what (Named var, cond))
+                                                           (subst what (Named var, e1))
+                                                           (subst what (Named var, e2))
+subst _ _ = InvalidExpr                                                           
+
+--reduce1 may return error
 reduce1 :: Expr -> Maybe Expr
 reduce1 (Const _) = Nothing 
--- reduce1 (Tag string) = Just (Const $ hash string)
--- reduce1 (Field index (Econstr string args)) = args !! index --not Econstr | len(args) < index -> BadProgram
 reduce1 (Var _) = Nothing --substitute
--- reduce1 (BinOp oper e1 e2) = reduce em, if not const then error
--- reduce1 (Ifthenelse (BoolExpr cond)  e1 e2) = if cond then e1 else e2 -- we might
-reduce1 _ = Nothing --const, var
+reduce1 (Tag (Econstr name _)) = Just (Const $ hash name)
+-- reduce1 (Field index (Econstr string args)) = args !! index --not Econstr | len(args) < index -> BadProgram
+reduce1 (BinOp oper e1 e2) = Just (bincalc oper (simplify reduce1 e1) (simplify reduce1 e2))
+reduce1 (Ifthenelse (BoolExpr condition) e1 e2) = if condition then Just e1 else Just e2 
+--TODO: need to simplify possible condition as expression
+reduce1 _ = Just InvalidExpr
+-- reduce1 (Ifthenelse condexpr e1 e2) = reduce1 (Ifthenelse (simplify))
+
 
 simplify ::(Expr -> Maybe Expr) ->  Expr -> Expr
 simplify reduce1 e = case reduce1 e of
