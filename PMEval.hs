@@ -58,12 +58,12 @@ bincalc :: BinOpSort -> Expr -> Expr -> Expr
 -- bincalc _ Nothing _ = InvalidExpr
 -- bincalc _ _ Nothing = InvalidExpr
 bincalc oper (Const x) (Const y) = case oper of
-	Mul -> Const $ x * y
-	Add -> Const $ x + y
-	Sub -> Const $ x - y
-	Eq -> BoolExpr $ x == y
-	LessThen -> BoolExpr $ x <= y
-	LessEq -> BoolExpr $ x < y
+    Mul -> Const $ x * y
+    Add -> Const $ x + y
+    Sub -> Const $ x - y
+    Eq -> BoolExpr $ x == y
+    LessThen -> BoolExpr $ x <= y
+    LessEq -> BoolExpr $ x < y
 bincalc _ _ _ = InvalidExpr
 
 subst :: Expr -> (Pattern, Expr) -> Expr
@@ -76,7 +76,7 @@ subst what (Named var, Econstr name args) = Econstr name $ map (curry (subst wha
 subst what (Named var, Ifthenelse cond e1 e2) = Ifthenelse (subst what (Named var, cond))
                                                            (subst what (Named var, e1))
                                                            (subst what (Named var, e2))
-subst _ _ = InvalidExpr                                                           
+subst what (p, e) = e
 
 --reduce1 may return error
 reduce1 :: Expr -> Maybe Expr
@@ -90,11 +90,12 @@ reduce1 (Ifthenelse (BoolExpr condition) e1 e2) = if condition then Just e1 else
 reduce1 _ = Just InvalidExpr
 -- reduce1 (Ifthenelse condexpr e1 e2) = reduce1 (Ifthenelse (simplify))
 
-
+    
 simplify ::(Expr -> Maybe Expr) ->  Expr -> Expr
+simplify reduce1 InvalidExpr = InvalidExpr
 simplify reduce1 e = case reduce1 e of
-                          Just e -> simplify reduce1 e
-                          Nothing -> e 
+                         Just e -> simplify reduce1 e
+                         Nothing -> e 
 
 -- ((Expr, Pattern) -> Bool) -> [(Expr, Pattern)] -> Bool
 -- (a -> Bool) -> [a] -> Bool
@@ -105,21 +106,25 @@ match' _ Wild = True
 match' (Const e) (Pconst p) = e == p
 match' (Econstr ename eargs) (Pconstr pname pargs) = ename == pname && length eargs == length pargs
                                                      && (all (uncurry match') (zip eargs pargs))
-match' e p = False
+match' _ _ = False
 --all match cases
 --if not found, try to reduce Expr
 --not reducable => return False
 
 --this is correct pattern, just calculate the expression, which is already simplified
-calculate :: (Pattern, Expr) -> EvalRez
-calculate (Wild, _) = OK 43 --testWild
-calculate (Pconstr _ _, e) = OK 41 --testConstr
-calculate (p, e) = OK 42 
+calculate :: Expr -> (Pattern, Expr) -> EvalRez
+-- calculate what (Wild, _) = OK 43 --testWild
+calculate what (Pconstr _ _, e) = OK 41 --testConstr
+calculate what (p, e) = case simplify reduce1 (subst what (p, e)) of
+    Const a -> OK a
+    InvalidExpr -> BadProgram
+    _ -> PMatchFail
+calculate _ _ = OK 42 
 
 
 eval ::  Expr -> [(Pattern, Expr)] -> EvalRez
 eval _ [] = PMatchFail
 eval expr ((lhs,rhs) : ps) = 
-    if (match' expr lhs) then (calculate (lhs,rhs))
+    if (match' expr lhs) then (calculate expr (lhs,rhs))
     else eval expr ps
     -- simplify all expressions

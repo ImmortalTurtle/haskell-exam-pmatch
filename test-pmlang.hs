@@ -27,6 +27,7 @@ tests = TestList
   , wrap "testConstr1"   "C(1,2,5)"     ["C(1,2) -> 41"] (PMatchFail)
   , wrap "testConstr2"   "C(1,2)"     ["U(1,_) -> 41"] (PMatchFail)
   , wrap "testWild0"   "C(1,2,3)"    ["_ -> 43", "x->x"] (OK 43)
+  , wrap "testConsts0" "7" ["7 -> 1+2*4"] (OK 9)
   , wrap "test2"   "0+14*3"   ["_ -> 42"] (OK 42)
   , wrap "test3"   "A(1,2)"   ["A(x,y) -> 42"] (OK 42)
   , wrap "test3"   "A(1,42)"  ["A(x,x) -> 42"] (OK 42)  -- take the most right x
