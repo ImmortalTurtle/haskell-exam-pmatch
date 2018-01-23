@@ -16,8 +16,9 @@ wrap name what casesS expected =
     cases = map (PMParser.parseCase optsP optsE) casesS
     c2 = map (\r -> TestCase (assertBool "case is parsable" (isRight r)) ) cases
     (_,cases2) = partitionEithers cases
+    (_, [w']) = partitionEithers [w]
     c3 = TestCase (assertEqual "evaluated correctly"
-                      expected (PMEval.eval w cases))
+                      expected (PMEval.eval w' cases2))
 
 -- mistakes in syntax can be here. Please report the ones.
 tests = TestList

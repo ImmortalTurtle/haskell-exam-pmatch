@@ -4,8 +4,8 @@ import PMParser
 import Data.Hashable (hash)
 import Text.Parsec as Parsec
 
-data Expr = Const Int | Tag String | Var String |
-            Field Int String | BinOp BinOpSort Expr Expr | 
+data Expr = Const Int | Tag Expr | Var String |
+            Field Int Expr | BinOp BinOpSort Expr Expr | 
             Econstr String [Expr] | Ifthenelse Expr Expr Expr |
             BoolExpr Bool
             deriving (Show)
@@ -53,13 +53,14 @@ data EvalRez =
 
 -- For examples about which expression and patterns can be written see tests file.
 
+--takes 2 constants and returns BoolExpr
 -- bincalc :: BinOpSort -> Expr -> Expr -> Expr
--- bincalc 
+-- bincalc (Const bool) = BoolExpr True
 
 reduce1 :: Expr -> Maybe Expr
 reduce1 (Const _) = Nothing 
-reduce1 (Tag string) = Just (Const $ hash string)
-reduce1 (Field index (Econstr string args)) = args !! index --not Econstr | len(args) < index -> BadProgram
+-- reduce1 (Tag string) = Just (Const $ hash string)
+-- reduce1 (Field index (Econstr string args)) = args !! index --not Econstr | len(args) < index -> BadProgram
 reduce1 (Var _) = Nothing --substitute
 -- reduce1 (BinOp oper e1 e2) = reduce em, if not const then error
 -- reduce1 (Ifthenelse (BoolExpr cond)  e1 e2) = if cond then e1 else e2 -- we might
@@ -91,11 +92,9 @@ calculate (Pconstr _ _, e) = OK 41 --testConstr
 calculate (p, e) = OK 42 
 
 
-eval ::  Either Parsec.ParseError Expr -> [Either Parsec.ParseError (Pattern, Expr)] -> EvalRez
+eval ::  Expr -> [(Pattern, Expr)] -> EvalRez
 eval _ [] = PMatchFail
-eval (Left _) _ = PMatchFail
-eval _ (Left e:rest) = PMatchFail
-eval (Right expr) (Right (lhs,rhs) : ps) = 
+eval expr ((lhs,rhs) : ps) = 
     if (match' expr lhs) then (calculate (lhs,rhs))
-    else eval (Right expr) ps
-    --simplify all expressions
+    else eval expr ps
+    -- simplify all expressions
