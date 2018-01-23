@@ -28,7 +28,7 @@ stringConst s = do
 data BinOpSort = Mul | Add | Sub | Eq | LessThen | LessEq deriving Show
 data Ops a = TermConstruction
   { int    :: Info -> Int -> a
-  , tag    :: Info -> String -> a
+  , tag    :: Info -> a -> a
   , var    :: Info -> String -> a
   , field  :: Info -> Int -> a -> a
   , binop  :: BinOpSort -> a -> a -> a
@@ -80,6 +80,7 @@ parserRhs ops =
       pos <- getPosition
       spaces
       return $ ifthenelse ops (infoFrom pos) cond_ then_ else_
+
     fieldOp ops = do
       spaces
       stringConst "field"
@@ -92,16 +93,14 @@ parserRhs ops =
       spaces
       return $ field ops (infoFrom pos) n v
 
-    --tagOp :: Stream s m t => Ops a -> ParsecT s () m a
-    tagOp :: Ops a -> Parser a
     tagOp ops = do
       spaces
       string "tag"
       spaces
-      v <- many1 letter
+      t <- parserRhs ops
       pos <- getPosition
       spaces
-      return $ tag ops (infoFrom pos) v
+      return $ tag ops (infoFrom pos) t
 
     varName :: Ops a -> Parser a
     varName ops = do
