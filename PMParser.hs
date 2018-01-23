@@ -30,7 +30,7 @@ data Ops a = TermConstruction
   { int    :: Info -> Int -> a
   , tag    :: Info -> String -> a
   , var    :: Info -> String -> a
-  , field  :: Info -> Int -> String -> a
+  , field  :: Info -> Int -> a -> a
   , binop  :: BinOpSort -> a -> a -> a
   , econstr:: Info -> String -> [a] -> a
   , ifthenelse :: Info -> a -> a -> a -> a
@@ -87,7 +87,7 @@ parserRhs ops =
       digits <- many1 digit
       let n = foldl (\acc d -> 10*acc + digitToInt d) 0 digits
       spaces
-      v <- many1 letter
+      v <- parserRhs ops
       pos <- getPosition
       spaces
       return $ field ops (infoFrom pos) n v
