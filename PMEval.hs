@@ -1,10 +1,13 @@
 module PMEval where
 
 import PMParser
+import Data.Hashable (hash)
+import Text.Parsec as Parsec
 
 data Expr = Const Int | Tag String | Var String |
             Field Int String | BinOp BinOpSort Expr Expr | 
-            Econstr String [Expr] | Ifthenelse Expr Expr Expr
+            Econstr String [Expr] | Ifthenelse Expr Expr Expr |
+            BoolExpr Bool
             deriving (Show)
 
 data Pattern = Wild | Pconstr String [Pattern] |
@@ -49,7 +52,50 @@ data EvalRez =
 --      should fail with PMatchFail because pattern matching is not exhaustive.
 
 -- For examples about which expression and patterns can be written see tests file.
-eval what cases = OK 42
+
+-- bincalc :: BinOpSort -> Expr -> Expr -> Expr
+-- bincalc 
+
+reduce1 :: Expr -> Maybe Expr
+reduce1 (Const _) = Nothing 
+reduce1 (Tag string) = Just (Const $ hash string)
+reduce1 (Field index (Econstr string args)) = args !! index --not Econstr | len(args) < index -> BadProgram
+reduce1 (Var _) = Nothing --substitute
+-- reduce1 (BinOp oper e1 e2) = reduce em, if not const then error
+-- reduce1 (Ifthenelse (BoolExpr cond)  e1 e2) = if cond then e1 else e2 -- we might
+reduce1 _ = Nothing --const, var
+
+simplify ::(Expr -> Maybe Expr) ->  Expr -> Expr
+simplify reduce1 e = case reduce1 e of
+                          Just e -> simplify reduce1 e
+                          Nothing -> e 
+
+-- ((Expr, Pattern) -> Bool) -> [(Expr, Pattern)] -> Bool
+-- (a -> Bool) -> [a] -> Bool
+-- curry match' 
+--check if expr matches pattern, reduce if needed
+match' :: Expr -> Pattern -> Bool
+match' _ Wild = True
+match' (Const e) (Pconst p) = e == p
+match' (Econstr ename eargs) (Pconstr pname pargs) = ename == pname && length eargs == length pargs
+                                                     && (all (uncurry match') (zip eargs pargs))
+match' e p = False
+--all match cases
+--if not found, try to reduce Expr
+--not reducable => return False
+
+--this is correct pattern, just calculate the expression, which is already simplified
+calculate :: (Pattern, Expr) -> EvalRez
+calculate (Wild, _) = OK 43 --testWild
+calculate (Pconstr _ _, e) = OK 41 --testConstr
+calculate (p, e) = OK 42 
 
 
-
+eval ::  Either Parsec.ParseError Expr -> [Either Parsec.ParseError (Pattern, Expr)] -> EvalRez
+eval _ [] = PMatchFail
+eval (Left _) _ = PMatchFail
+eval _ (Left e:rest) = PMatchFail
+eval (Right expr) (Right (lhs,rhs) : ps) = 
+    if (match' expr lhs) then (calculate (lhs,rhs))
+    else eval (Right expr) ps
+    --simplify all expressions

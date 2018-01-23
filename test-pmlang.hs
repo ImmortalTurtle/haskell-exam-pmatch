@@ -21,7 +21,11 @@ wrap name what casesS expected =
 
 -- mistakes in syntax can be here. Please report the ones.
 tests = TestList
-  [ wrap "test1"   "C(1)"     ["_ -> 42", "x->x"] (OK 42)
+  [ wrap "testConstr0"   "C(1,2)"     ["C(1,2) -> 41"] (OK 41)
+  , wrap "testConstr0"   "C(1,2)"     ["C(_,_) -> 41"] (OK 41)
+  , wrap "testConstr1"   "C(1,2,5)"     ["C(1,2) -> 41"] (PMatchFail)
+  , wrap "testConstr2"   "C(1,2)"     ["U(1,_) -> 41"] (PMatchFail)
+  , wrap "testWild0"   "C(1,2,3)"    ["_ -> 43", "x->x"] (OK 43)
   , wrap "test2"   "0+14*3"   ["_ -> 42"] (OK 42)
   , wrap "test3"   "A(1,2)"   ["A(x,y) -> 42"] (OK 42)
   , wrap "test3"   "A(1,42)"  ["A(x,x) -> 42"] (OK 42)  -- take the most right x
@@ -29,6 +33,7 @@ tests = TestList
   , wrap "test5"   "A(1,43)"  ["x -> (field 1 x) - (field 0 x)"] (OK 42)
   , wrap "test6"   "P(1,2,6)" ["x -> if (field 0 x) < (field 1 x) then 42 else 42"] (OK 42)
   , wrap "test7"   "P(10,10)" ["P(x,y) -> if 6<x then (if 19<y then 42 else 19) else 34" ] (OK 42)
+  , wrap "test8"   "10" ["10 -> 42" ] (OK 42)
   -- next should fail with silly eval
   --, wrap "test101" "A(B,C)"   ["A(x,y) -> (tag x) + (tag y)"] (OK $ hash "B" + hash "C")
   --, wrap "test102" "A(1,2)"   ["A(2,x) -> 42"
